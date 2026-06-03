@@ -1,0 +1,33 @@
+Mods: {
+	PocketStrata: {
+		Items: {
+			TerrainRecorderItem: {
+				DisplayName: Terrain Recorder
+				Tooltip:
+					'''
+					Drag with left click to box-select tiles. Right click toggles Union/Subtract mode.
+					Use /ps save to write .pstrata files; F9 applies the selected structure.
+					'''
+			}
+		}
+
+		Commands: {
+			PocketStrataCommand: {
+				DisplayName: Pocket Strata
+				Description: Save, list, and select building structures (.pstrata). F9 applies the selected structure.
+			}
+
+			PocketWorldVisualDebugCommand: {
+				DisplayName: Pocket Strata Debug
+				Description: Plan B pocket session debug. /pocketview session on|off [w] [h], /pocketview insider on|off. F9 applies selected .pstrata (not live capture).
+			}
+		}
+	}
+}
+
+Items: {
+	TerrainRecorderItem: {
+		Tooltip: ""
+		DisplayName: Terrain Recorder Item
+	}
+}

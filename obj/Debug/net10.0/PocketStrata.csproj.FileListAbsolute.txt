@@ -1,0 +1,12 @@
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\PocketStrata.csproj.AssemblyReference.cache
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\PocketStrata.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\PocketStrata.AssemblyInfoInputs.cache
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\PocketStrata.AssemblyInfo.cs
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\PocketStrata.csproj.CoreCompileInputs.cache
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\bin\Debug\net10.0\PocketStrata.deps.json
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\bin\Debug\net10.0\PocketStrata.dll
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\bin\Debug\net10.0\PocketStrata.pdb
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\PocketStrata.dll
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\refint\PocketStrata.dll
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\PocketStrata.pdb
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\ref\PocketStrata.dll

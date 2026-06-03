@@ -1,0 +1,33 @@
+Mods: {
+	PocketStrata: {
+		Items: {
+			TerrainRecorderItem: {
+				DisplayName: 地形采集记录器
+				Tooltip:
+					'''
+					左键拖拽框选地形，右键切换「与(增加) / 非(减少)」选区模式。
+					配合 /ps save 保存为 .pstrata 结构；F9 应用已选结构。
+					'''
+			}
+		}
+
+		Commands: {
+			PocketStrataCommand: {
+				DisplayName: 口袋地层
+				Description: 保存/列出/选择建筑结构 (.pstrata)。F9 应用已选结构。
+			}
+
+			PocketWorldVisualDebugCommand: {
+				DisplayName: 口袋地层调试
+				Description: 调试 Plan B 口袋会话：/pocketview session on|off [宽] [高]，/pocketview insider on|off。F9 应用已选 .pstrata 结构（非即时抓取）。
+			}
+		}
+	}
+}
+
+Items: {
+	TerrainRecorderItem: {
+		// Tooltip: ""
+		// DisplayName: Terrain Recorder Item
+	}
+}

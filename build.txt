@@ -1,0 +1,4 @@
+displayName = PocketStrata
+author = Mornia-Cherry
+version = 0.1
+modReferences = ArknightsMod
