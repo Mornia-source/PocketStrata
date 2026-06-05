@@ -151,6 +151,12 @@ namespace PocketStrata.Content.Systems
 			if (pl == null || !pl.active)
 				return;
 
+			if (PocketWorldTileTransitionSystem.IsTransitionActive)
+			{
+				PocketStrataChat.NewText("[PocketStrata] 子世界切换动画进行中，请稍候…", Color.Orange);
+				return;
+			}
+
 			if (IsLocalClientPocketSessionOpen())
 			{
 				if (Main.netMode == NetmodeID.SinglePlayer)
@@ -177,6 +183,12 @@ namespace PocketStrata.Content.Systems
 		{
 			if (pl == null || !pl.active)
 				return;
+
+			if (PocketWorldTileTransitionSystem.IsTransitionActive)
+			{
+				PocketStrataChat.NewText("[PocketStrata] 子世界切换动画进行中，请稍候…", Color.Orange);
+				return;
+			}
 
 			if (Main.netMode == NetmodeID.MultiplayerClient && PocketWorldChunkNetwork.IsClientUploadInProgress())
 			{
@@ -441,6 +453,13 @@ namespace PocketStrata.Content.Systems
 			}
 
 			MergeCellsIntoArray(_realBackup, _sessionTileArea, chunkArea, chunkCells);
+
+			// 旁观者：每收到一块真实备份就立刻写回 Main.tile，不碰尚未收到的格
+			if (Main.netMode == NetmodeID.MultiplayerClient
+				&& Main.LocalPlayer?.GetModPlayer<PocketWorldViewPlayer>().SeesPocketInterior != true)
+			{
+				ApplySnapshotChunkToMainTile(chunkArea, chunkCells);
+			}
 		}
 
 		private static void MergeCellsIntoArray(
@@ -634,8 +653,12 @@ namespace PocketStrata.Content.Systems
 			}
 
 			_pendingApplyPocketInterior = false;
+			ClientTryApplyWithTransition(_sessionTileArea, CommitClientPocketInterior);
+		}
 
-			ApplyTileArray(_pocketTiles, _sessionTileArea, refreshFrames: true);
+		private static void CommitClientPocketInterior()
+		{
+			RefreshTileFramesForArea(_sessionTileArea);
 
 			if (!_clientPocketInteriorApplied)
 			{
@@ -658,7 +681,7 @@ namespace PocketStrata.Content.Systems
 
 			_clientPocketInteriorApplied = false;
 			_pendingApplyPocketInterior = false;
-			ApplyTileArray(realBackup, area, refreshFrames: true);
+			ClientTryApplyWithTransition(area, () => RefreshTileFramesForArea(area), realBackup);
 		}
 
 		// 兼容旧版 OpenSessionEnter 包：只读结构名并触发 ClientApply（会话区以 SyncPocketVisualSession 为准）
@@ -724,8 +747,67 @@ namespace PocketStrata.Content.Systems
 				return;
 
 			PocketSnapCell[,] realBackup = GetClientRestoreBackup(area);
-			if (realBackup != null)
-				ApplyTileArray(realBackup, area, refreshFrames: true);
+			if (realBackup == null)
+				return;
+
+			ClientTryApplyWithTransition(area, () => RefreshTileFramesForArea(area), realBackup);
+		}
+
+		// 播放飞入/飞出过渡后再写入目标地形；toOverride 为空时默认 _pocketTiles（出现子世界）
+		private static void ClientTryApplyWithTransition(Rectangle area, Action onComplete, PocketSnapCell[,] toOverride = null)
+		{
+			PocketSnapCell[,] target = toOverride ?? _pocketTiles;
+			bool opening = toOverride == null;
+			if (target == null || area.Width <= 0)
+			{
+				onComplete?.Invoke();
+				return;
+			}
+
+			PocketSnapCell[,] backup = GetClientRestoreBackup(area);
+			if (backup != null)
+				ApplyTileArray(backup, area, refreshFrames: false, onlyApplyCapturedCells: true);
+
+			PocketSnapCell[,] from = CaptureTileArray(area);
+			if (from == null)
+			{
+				onComplete?.Invoke();
+				return;
+			}
+
+			if (PocketWorldTileTransitionSystem.TryBeginTransition(area, from, target, onComplete, opening))
+				return;
+
+			onComplete?.Invoke();
+		}
+
+		private static void LocalTryApplyWithTransition(
+			Rectangle area,
+			PocketSnapCell[,] from,
+			PocketSnapCell[,] to,
+			Action onComplete,
+			bool opening)
+		{
+			if (Main.dedServ || to == null || area.Width <= 0)
+			{
+				onComplete?.Invoke();
+				return;
+			}
+
+			if (from == null)
+			{
+				onComplete?.Invoke();
+				return;
+			}
+
+			// 出现时 Main.tile 仍是原地形，无需整区重写；消失时需先写入口袋地形供飞出绘制
+			if (!opening)
+				ApplyTileArray(from, area, refreshFrames: false);
+
+			if (PocketWorldTileTransitionSystem.TryBeginTransition(area, from, to, onComplete, opening))
+				return;
+
+			onComplete?.Invoke();
 		}
 
 		// 客户端：口袋 chunk 全部收齐（SyncPocketTilesComplete）
@@ -799,7 +881,12 @@ namespace PocketStrata.Content.Systems
 		}
 
 		// 快照数组写入 Main.tile 矩形（抑制掉落，可选刷新帧）
-		public static void ApplyTileArray(PocketSnapCell[,] arr, Rectangle area, bool refreshFrames = true)
+		// onlyApplyCapturedCells：仅写入 IsCaptured 的格，避免分块未收齐时用空单元格清空地形
+		public static void ApplyTileArray(
+			PocketSnapCell[,] arr,
+			Rectangle area,
+			bool refreshFrames = true,
+			bool onlyApplyCapturedCells = false)
 		{
 			if (arr == null || area.Width <= 0 || area.Height <= 0)
 				return;
@@ -812,15 +899,28 @@ namespace PocketStrata.Content.Systems
 				{
 					for (int dy = 0; dy < area.Height; dy++)
 					{
+						PocketSnapCell cell = arr[dx, dy];
+						if (onlyApplyCapturedCells && !cell.IsCaptured)
+							continue;
+
 						int tx = area.X + dx;
 						int ty = area.Y + dy;
-						ApplySnapCellCore(tx, ty, arr[dx, dy]);
+						ApplySnapCellCore(tx, ty, cell);
 					}
 				}
 
 				if (refreshFrames)
 					RefreshTileFramesForArea(area);
 			});
+		}
+
+		// 将快照中单个 chunk 写入 Main.tile（用于旁观者按块还原真实地形）
+		internal static void ApplySnapshotChunkToMainTile(Rectangle chunkArea, PocketSnapCell[,] chunkCells)
+		{
+			if (chunkArea.Width <= 0 || chunkCells == null)
+				return;
+
+			ApplyTileArray(chunkCells, chunkArea, refreshFrames: false);
 		}
 
 		internal static void NotifySubWorldOpened(string structureLabel, Rectangle area, Point anchorLocal)
@@ -897,6 +997,7 @@ namespace PocketStrata.Content.Systems
 			_sessionSpawnAnchorLocal = spawnAnchorLocal ?? new Point(tileArea.Width / 2, tileArea.Height / 2);
 			_realBackup = CaptureTileArray(tileArea);
 			_pocketTiles = PocketStructureFile.CloneCells(pocketSource);
+			PocketSnapCell.MarkDenseContentForApply(_pocketTiles);
 			SetSessionState(true, tileArea);
 			_currentSessionLabel = string.IsNullOrEmpty(structureLabel) ? "结构" : structureLabel;
 			_sessionInsiderIndex = triggerPlayerIndex;
@@ -904,9 +1005,17 @@ namespace PocketStrata.Content.Systems
 			if (Main.netMode == NetmodeID.SinglePlayer)
 			{
 				string label = structureLabel ?? "结构";
-				ApplyTileArray(_pocketTiles, tileArea);
-				NotifySubWorldOpened(label, tileArea, _sessionSpawnAnchorLocal);
 				FinishOpenSessionNetworking(triggerPlayerIndex, tileArea, sendTileSquare: false);
+				LocalTryApplyWithTransition(
+					tileArea,
+					_realBackup,
+					_pocketTiles,
+					() =>
+					{
+						RefreshTileFramesForArea(tileArea);
+						NotifySubWorldOpened(label, tileArea, _sessionSpawnAnchorLocal);
+					},
+					opening: true);
 				return;
 			}
 
@@ -918,7 +1027,7 @@ namespace PocketStrata.Content.Systems
 				if (PocketWorldTileChunks.CountChunks(tileArea) > 1)
 					BeginServerStagedPocketApply(triggerPlayerIndex);
 				else
-					ApplyTileArray(_pocketTiles, tileArea);
+					ApplyTileArray(_pocketTiles, tileArea, refreshFrames: false);
 
 				FinishOpenSessionNetworking(triggerPlayerIndex, tileArea, sendTileSquare: false);
 				ScheduleEnterSubWorldAfterServerApply(triggerPlayerIndex);
@@ -1024,7 +1133,7 @@ namespace PocketStrata.Content.Systems
 
 			Rectangle chunk = _serverChunkApplyQueue.Dequeue();
 			PocketSnapCell[,] cells = PocketWorldTileChunks.Extract(_pocketTiles, _sessionTileArea, chunk);
-			ApplyTileArray(cells, chunk);
+			ApplyTileArray(cells, chunk, refreshFrames: false);
 		}
 
 		private static void CancelServerStagedApply()
@@ -1113,21 +1222,42 @@ namespace PocketStrata.Content.Systems
 			_pocketTiles = CaptureTileArray(_sessionTileArea);
 			Rectangle closed = _sessionTileArea;
 			PocketSnapCell[,] realSnap = _realBackup;
+			PocketSnapCell[,] fromPocket = PocketStructureFile.CloneCells(_pocketTiles);
 
 			PocketCloseAnimPolicy closePolicy = reason == PocketSessionCloseReason.BossDeath
 				? PocketCloseAnimPolicy.AllInsiders
 				: PocketCloseAnimPolicy.LocalRequesterOnly;
 
+			if (Main.netMode == NetmodeID.SinglePlayer)
+			{
+				Main.LocalPlayer.GetModPlayer<PocketWorldViewPlayer>().SeesPocketInterior = false;
+				if (realSnap != null && fromPocket != null)
+				{
+					LocalTryApplyWithTransition(
+						closed,
+						fromPocket,
+						realSnap,
+						() =>
+						{
+							RefreshTileFramesForArea(closed);
+							ClearSessionStateAfterClose();
+						},
+						opening: false);
+				}
+				else
+				{
+					if (realSnap != null)
+						ApplyTileArray(realSnap, closed, refreshFrames: true);
+					ClearSessionStateAfterClose();
+				}
+
+				return;
+			}
+
 			if (realSnap != null)
 				ApplyTileArray(realSnap, closed);
 
 			ClearSessionStateAfterClose();
-
-			if (Main.netMode == NetmodeID.SinglePlayer)
-			{
-				Main.LocalPlayer.GetModPlayer<PocketWorldViewPlayer>().SeesPocketInterior = false;
-				return;
-			}
 
 			NotifyMultiplayerSessionClosed(closed, (byte)closePolicy, sendTileSquare: realSnap != null);
 		}

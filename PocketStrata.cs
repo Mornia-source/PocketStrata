@@ -14,21 +14,36 @@ namespace PocketStrata
 		// 网络包类型（勿改已有编号，保持协议兼容）
 		public enum PacketType : byte
 		{
-			SyncPocketVisualSession = 1,      // 会话开关、区域、锚点、结构名
-			SyncPocketWorldViewPlayer = 2,    // 进入者视角 SeesPocketInterior
-			SyncPocketSnapshot = 3,           // 旧版整包真实备份（保留兼容）
-			RequestOpenPocketSession = 4,     // 客户端请求调试开会话
-			RequestClosePocketSession = 5,    // 客户端请求关闭会话
-			RequestOpenPocketSessionNamed = 6,// 旧版整包上传开会话（保留兼容）
-			OpenSessionNamedBegin = 7,        // F9 分块上传：开始
-			OpenSessionNamedChunk = 8,        // F9 分块上传：数据块
-			OpenSessionNamedFinish = 9,       // F9 分块上传：结束
-			SyncSnapshotChunk = 10,           // 真实备份分块
-			SyncPocketTilesChunk = 11,        // 口袋地形分块
-			SyncPocketTilesComplete = 12,     // 口袋分块接收完毕
-			OpenSessionUploadFailed = 13,     // 上传失败提示
-			OpenSessionServerAccepted = 14,   // 服务端已接受上传
-			OpenSessionEnter = 15,            // 旧版进入通知（保留兼容）
+			// 会话开关、区域、锚点、结构名
+			SyncPocketVisualSession = 1,
+			// 进入者视角 SeesPocketInterior
+			SyncPocketWorldViewPlayer = 2,
+			// 旧版整包真实备份（保留兼容）
+			SyncPocketSnapshot = 3,
+			// 客户端请求调试开会话
+			RequestOpenPocketSession = 4,
+			// 客户端请求关闭会话
+			RequestClosePocketSession = 5,
+			// 旧版整包上传开会话（保留兼容）
+			RequestOpenPocketSessionNamed = 6,
+			// F9 分块上传：开始
+			OpenSessionNamedBegin = 7,
+			// F9 分块上传：数据块
+			OpenSessionNamedChunk = 8,
+			// F9 分块上传：结束
+			OpenSessionNamedFinish = 9,
+			// 真实备份分块
+			SyncSnapshotChunk = 10,
+			// 口袋地形分块
+			SyncPocketTilesChunk = 11,
+			// 口袋分块接收完毕
+			SyncPocketTilesComplete = 12,
+			// 上传失败提示
+			OpenSessionUploadFailed = 13,
+			// 服务端已接受上传
+			OpenSessionServerAccepted = 14,
+			// 旧版进入通知（保留兼容）
+			OpenSessionEnter = 15,
 		}
 
 		// 根据包类型分发到各子系统

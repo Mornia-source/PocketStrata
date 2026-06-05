@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PocketStrata")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ccb654e495274bfc9678064cbdcea6a9d717dce1")]
 [assembly: System.Reflection.AssemblyProductAttribute("PocketStrata")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PocketStrata")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

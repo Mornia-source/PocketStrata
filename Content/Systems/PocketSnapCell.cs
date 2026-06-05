@@ -108,6 +108,12 @@ namespace PocketStrata.Content.Systems
 				return;
 
 			Tile t = Main.tile[tx, ty];
+			WriteToTile(ref t);
+		}
+
+		// 写入 Tile 引用（绘制飞行精灵时用临时 Tile 取纹理）
+		internal void WriteToTile(ref Tile t)
+		{
 			t.ClearEverything();
 
 			if (HasWall)
@@ -215,6 +221,7 @@ namespace PocketStrata.Content.Systems
 			c.LiquidAmount = reader.ReadByte();
 			c.LiquidType = reader.ReadByte();
 			c.CoatingFlags = reader.ReadByte();
+			c.IsCaptured = true;
 			return c;
 		}
 	}

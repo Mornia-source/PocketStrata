@@ -7,8 +7,8 @@ namespace PocketStrata
 	// 模组消息出口；SuppressAllMessages 为 true 时不显示屏幕提示
 	internal static class PocketStrataChat
 	{
-		// 默认显示屏幕消息，/ps messages 可切换静默
-		internal static bool SuppressAllMessages = false;
+		// 暂时默认静默；/ps messages 可重新开启屏幕提示
+		internal static bool SuppressAllMessages = true;
 
 		public static void ToggleMessages(CommandCaller caller)
 		{

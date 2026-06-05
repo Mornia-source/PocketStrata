@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\PocketStrata.csproj": {}
+    "c:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\PocketStrata.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\PocketStrata.csproj": {
+    "c:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\PocketStrata.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\PocketStrata.csproj",
+        "projectUniqueName": "c:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\PocketStrata.csproj",
         "projectName": "PocketStrata",
-        "projectPath": "C:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\PocketStrata.csproj",
+        "projectPath": "c:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\PocketStrata.csproj",
         "packagesPath": "C:\\Users\\Cherry\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\obj\\",
+        "outputPath": "c:\\Users\\Cherry\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\PocketStrata\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Cherry\\AppData\\Roaming\\NuGet\\NuGet.Config"

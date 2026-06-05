@@ -10,3 +10,4 @@ c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\o
 c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\refint\PocketStrata.dll
 c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\PocketStrata.pdb
 c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\ref\PocketStrata.dll
+c:\Users\Cherry\Documents\My Games\Terraria\tModLoader\ModSources\PocketStrata\obj\Debug\net10.0\PocketStrata.sourcelink.json

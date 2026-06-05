@@ -21,32 +21,18 @@ namespace PocketStrata.Content.Systems
 
 		private static void NetMessage_SendSection(On_NetMessage.orig_SendSection orig, int whoAmi, int sectionX, int sectionY)
 		{
-			if (Main.netMode != NetmodeID.Server && !Main.dedServ)
+			if (!ShouldGuardServerSend())
 			{
 				orig(whoAmi, sectionX, sectionY);
 				return;
 			}
 
-			if (!PocketWorldVisualMaskSystem.SessionActive
-				|| !PocketWorldVisualMaskSystem.HasValidSessionArea)
+			Player receiver = GetPlayer(whoAmi);
+			if (IsInsider(receiver))
 			{
 				orig(whoAmi, sectionX, sectionY);
 				return;
 			}
-
-			Player receiver = whoAmi >= 0 && whoAmi < Main.maxPlayers ? Main.player[whoAmi] : null;
-			bool isInsider = receiver != null && receiver.active
-				&& receiver.GetModPlayer<PocketWorldViewPlayer>().SeesPocketInterior;
-
-			if (isInsider)
-			{
-				orig(whoAmi, sectionX, sectionY);
-				return;
-			}
-
-			Rectangle area = PocketWorldVisualMaskSystem.SessionTileArea;
-			PocketSnapCell[,] backup = PocketWorldVisualMaskSystem.Snap;
-			PocketSnapCell[,] pocket = PocketWorldVisualMaskSystem.PocketTiles;
 
 			const int SectionWidthTiles = 200;
 			const int SectionHeightTiles = 150;
@@ -56,21 +42,64 @@ namespace PocketStrata.Content.Systems
 				SectionWidthTiles,
 				SectionHeightTiles);
 
-			if (backup == null || pocket == null || !sectionRect.Intersects(area))
+			if (!TryGetSessionOverlap(sectionRect, out Rectangle overlap))
 			{
 				orig(whoAmi, sectionX, sectionY);
 				return;
 			}
 
-			PocketWorldVisualMaskSystem.ApplyTileArray(backup, area);
+			SendWithBackupSwap(whoAmi, overlap, () => orig(whoAmi, sectionX, sectionY));
+		}
+
+		private static void SendWithBackupSwap(int whoAmi, Rectangle overlap, System.Action send)
+		{
+			PocketSnapCell[,] backup = PocketWorldVisualMaskSystem.Snap;
+			PocketSnapCell[,] pocket = PocketWorldVisualMaskSystem.PocketTiles;
+			if (backup == null || pocket == null)
+			{
+				send();
+				return;
+			}
+
+			PocketWorldVisualMaskSystem.ApplyTileArray(backup, overlap, refreshFrames: false);
 			try
 			{
-				orig(whoAmi, sectionX, sectionY);
+				send();
 			}
 			finally
 			{
-				PocketWorldVisualMaskSystem.ApplyTileArray(pocket, area);
+				PocketWorldVisualMaskSystem.ApplyTileArray(pocket, overlap, refreshFrames: false);
 			}
 		}
+
+		private static bool ShouldGuardServerSend()
+		{
+			if (Main.netMode != NetmodeID.Server && !Main.dedServ)
+				return false;
+
+			return PocketWorldVisualMaskSystem.SessionActive
+				&& PocketWorldVisualMaskSystem.HasValidSessionArea;
+		}
+
+		private static bool TryGetSessionOverlap(Rectangle query, out Rectangle overlap)
+		{
+			overlap = Rectangle.Empty;
+			if (!PocketWorldVisualMaskSystem.HasValidSessionArea)
+				return false;
+
+			Rectangle area = PocketWorldVisualMaskSystem.SessionTileArea;
+			if (!query.Intersects(area))
+				return false;
+
+			overlap = Rectangle.Intersect(query, area);
+			return overlap.Width > 0 && overlap.Height > 0;
+		}
+
+		private static Player GetPlayer(int whoAmi) =>
+			whoAmi >= 0 && whoAmi < Main.maxPlayers ? Main.player[whoAmi] : null;
+
+		private static bool IsInsider(Player receiver) =>
+			receiver != null && receiver.active
+			&& receiver.GetModPlayer<PocketWorldViewPlayer>().SeesPocketInterior;
 	}
 }
