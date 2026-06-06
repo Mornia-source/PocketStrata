@@ -4,14 +4,15 @@ using Microsoft.Xna.Framework.Graphics;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
-using Terraria.Graphics;
 using Terraria.ID;
 
 namespace PocketStrata.Content.Systems
 {
-	// 绘制过渡动画中的方块/墙精灵（TileBatch 四角光照 + 引擎染色纹理）
+	// 绘制过渡动画方块/墙：飞行位置光照采样 + 落点插值 + 落盘前 alpha 缓冲
 	internal static class PocketFlyingTileDrawHelper
 	{
+		internal const float FadeOutStart = 0.88f;
+
 		public static void DrawCell(
 			SpriteBatch spriteBatch,
 			PocketSnapCell cell,
@@ -20,80 +21,86 @@ namespace PocketStrata.Content.Systems
 			float rotation,
 			float alpha,
 			int tileX,
-			int tileY)
+			int tileY,
+			float enterProgress = 0f)
 		{
-			_ = spriteBatch;
 			if (alpha <= 0.01f || scale <= 0.01f)
 				return;
 
+			float commitAlpha = alpha;
+			if (enterProgress > FadeOutStart)
+			{
+				float t = (enterProgress - FadeOutStart) / (1f - FadeOutStart);
+				commitAlpha *= MathHelper.Clamp(1f - t * t, 0f, 1f);
+			}
+
+			if (commitAlpha <= 0.01f)
+				return;
+
 			Vector2 screenCenter = worldCenter - Main.screenPosition;
-			byte alphaByte = (byte)(255f * Math.Clamp(alpha, 0f, 1f));
-			int lightX = ResolveLightTileX(worldCenter, tileX);
-			int lightY = ResolveLightTileY(worldCenter, tileY);
+			byte alphaByte = (byte)(255f * Math.Clamp(commitAlpha, 0f, 1f));
+			Vector2 landCenter = new Vector2(tileX * 16f + 8f, tileY * 16f + 8f);
 
 			if (cell.HasWall && cell.WallType > WallID.None)
-				DrawWall(cell, screenCenter, scale, rotation, alphaByte, lightX, lightY);
+			{
+				Color wallFlyLight = SampleWallLight(cell, worldCenter);
+				Color wallLandLight = SampleWallLight(cell, landCenter);
+				Color wallLight = LerpColor(wallFlyLight, wallLandLight, enterProgress);
+				wallLight.A = alphaByte;
+				DrawWall(spriteBatch, cell, screenCenter, scale, rotation, wallLight);
+			}
 
 			if (!cell.HasTile)
 				return;
 
 			Tile scratch = default;
 			cell.WriteToTile(ref scratch);
-			Texture2D tileTex = Main.instance.TilesRenderer.GetTileDrawTexture(scratch, lightX, lightY);
+			Texture2D tileTex = Main.instance.TilesRenderer.GetTileDrawTexture(scratch, tileX, tileY);
 			if (tileTex == null)
 				tileTex = TextureAssets.Tile[cell.TileType].Value;
 
+			Color flyLight = SampleTileLight(cell, scratch, tileX, tileY, worldCenter);
+			Color landLight = SampleTileLight(cell, scratch, tileX, tileY, landCenter);
+			Color tileLight = LerpColor(flyLight, landLight, enterProgress);
+			tileLight.A = alphaByte;
+
 			Rectangle tileFrame = new Rectangle(cell.FrameX, cell.FrameY, 16, 16);
-			VertexColors tileLight = SampleTileVertexColors(cell, scratch, lightX, lightY);
-			ApplyAlpha(ref tileLight, alphaByte);
-
 			Vector2 origin = tileFrame.Size() * 0.5f;
-			float drawW = tileFrame.Width * scale;
-			float drawH = tileFrame.Height * scale;
-			Vector4 destination = new Vector4(
-				screenCenter.X - origin.X * scale,
-				screenCenter.Y - origin.Y * scale,
-				drawW,
-				drawH);
-
-			Main.tileBatch.Draw(
+			spriteBatch.Draw(
 				tileTex,
-				destination,
+				screenCenter,
 				tileFrame,
 				tileLight,
-				origin * scale,
+				rotation,
+				origin,
+				scale,
 				SpriteEffects.None,
-				rotation);
+				0f);
 		}
 
 		private static void DrawWall(
+			SpriteBatch spriteBatch,
 			PocketSnapCell cell,
 			Vector2 screenCenter,
 			float scale,
 			float rotation,
-			byte alphaByte,
-			int lightX,
-			int lightY)
+			Color wallLight)
 		{
 			Texture2D wallTex = ResolveWallTexture(cell);
 			int wallFrameY = cell.WallFrameY + Main.wallFrame[cell.WallType] * 180;
 			Rectangle wallFrame = new Rectangle(cell.WallFrameX, wallFrameY, 32, 32);
-			VertexColors wallLight = SampleWallVertexColors(cell, lightX, lightY);
-			ApplyAlpha(ref wallLight, alphaByte);
 
 			Vector2 wallDrawPos = screenCenter - new Vector2(16f, 16f);
-			float drawW = wallFrame.Width * scale;
-			float drawH = wallFrame.Height * scale;
-			Vector4 destination = new Vector4(wallDrawPos.X, wallDrawPos.Y, drawW, drawH);
-
-			Main.tileBatch.Draw(
+			spriteBatch.Draw(
 				wallTex,
-				destination,
+				wallDrawPos,
 				wallFrame,
 				wallLight,
+				rotation,
 				Vector2.Zero,
+				scale,
 				SpriteEffects.None,
-				rotation);
+				0f);
 		}
 
 		private static Texture2D ResolveWallTexture(PocketSnapCell cell)
@@ -105,49 +112,47 @@ namespace PocketStrata.Content.Systems
 			return painted ?? wallTex;
 		}
 
-		private static VertexColors SampleTileVertexColors(PocketSnapCell cell, Tile scratch, int lightX, int lightY)
+		private static Color SampleTileLight(
+			PocketSnapCell cell,
+			Tile scratch,
+			int tileX,
+			int tileY,
+			Vector2 worldCenter)
 		{
 			if (IsTileFullbright(cell, scratch))
-				return new VertexColors(Color.White);
+				return Color.White;
 
-			if (Lighting.NotRetro)
-			{
-				Lighting.GetCornerColors(lightX, lightY, out VertexColors vertices, 1f);
-				Color center = Main.instance.TilesRenderer.DrawTiles_GetLightOverride(
-					lightY,
-					lightX,
-					scratch,
-					cell.TileType,
-					cell.FrameX,
-					cell.FrameY,
-					Lighting.GetColor(lightX, lightY));
-				BlendVertexColorsToward(ref vertices, center, 0.35f);
-				return vertices;
-			}
+			int sampleX = Utils.Clamp((int)(worldCenter.X / 16f), 1, Main.maxTilesX - 2);
+			int sampleY = Utils.Clamp((int)(worldCenter.Y / 16f), 1, Main.maxTilesY - 2);
 
-			Color tileLight = Main.instance.TilesRenderer.DrawTiles_GetLightOverride(
-				lightY,
-				lightX,
+			Color light = Lighting.GetColor(sampleX, sampleY);
+			return Main.instance.TilesRenderer.DrawTiles_GetLightOverride(
+				tileY,
+				tileX,
 				scratch,
 				cell.TileType,
 				cell.FrameX,
 				cell.FrameY,
-				Lighting.GetColor(lightX, lightY));
-			return new VertexColors(tileLight);
+				light);
 		}
 
-		private static VertexColors SampleWallVertexColors(PocketSnapCell cell, int lightX, int lightY)
+		private static Color SampleWallLight(PocketSnapCell cell, Vector2 worldCenter)
 		{
 			if (IsWallFullbright(cell))
-				return new VertexColors(Color.White);
+				return Color.White;
 
-			if (Lighting.NotRetro)
-			{
-				Lighting.GetCornerColors(lightX, lightY, out VertexColors vertices, 1f);
-				return vertices;
-			}
+			int sampleX = Utils.Clamp((int)(worldCenter.X / 16f), 1, Main.maxTilesX - 2);
+			int sampleY = Utils.Clamp((int)(worldCenter.Y / 16f), 1, Main.maxTilesY - 2);
+			return Lighting.GetColor(sampleX, sampleY);
+		}
 
-			return new VertexColors(Lighting.GetColor(lightX, lightY));
+		private static Color LerpColor(Color a, Color b, float t)
+		{
+			t = MathHelper.Clamp(t, 0f, 1f);
+			return new Color(
+				(int)(a.R + (b.R - a.R) * t),
+				(int)(a.G + (b.G - a.G) * t),
+				(int)(a.B + (b.B - a.B) * t));
 		}
 
 		private static bool IsTileFullbright(PocketSnapCell cell, Tile scratch)
@@ -160,41 +165,7 @@ namespace PocketStrata.Content.Systems
 			if ((cell.CoatingFlags & 8) != 0)
 				return true;
 
-			return cell.WallType == WallID.None || Main.wallLight[cell.WallType];
-		}
-
-		private static int ResolveLightTileX(Vector2 worldCenter, int fallbackX)
-		{
-			int lx = (int)(worldCenter.X / 16f);
-			if (lx < 0 || lx >= Main.maxTilesX)
-				lx = fallbackX;
-
-			return Math.Clamp(lx, 0, Main.maxTilesX - 1);
-		}
-
-		private static int ResolveLightTileY(Vector2 worldCenter, int fallbackY)
-		{
-			int ly = (int)(worldCenter.Y / 16f);
-			if (ly < 0 || ly >= Main.maxTilesY)
-				ly = fallbackY;
-
-			return Math.Clamp(ly, 0, Main.maxTilesY - 1);
-		}
-
-		private static void BlendVertexColorsToward(ref VertexColors vertices, Color target, float weight)
-		{
-			vertices.TopLeftColor = Color.Lerp(vertices.TopLeftColor, target, weight);
-			vertices.TopRightColor = Color.Lerp(vertices.TopRightColor, target, weight);
-			vertices.BottomLeftColor = Color.Lerp(vertices.BottomLeftColor, target, weight);
-			vertices.BottomRightColor = Color.Lerp(vertices.BottomRightColor, target, weight);
-		}
-
-		private static void ApplyAlpha(ref VertexColors vertices, byte alphaByte)
-		{
-			vertices.TopLeftColor.A = alphaByte;
-			vertices.TopRightColor.A = alphaByte;
-			vertices.BottomLeftColor.A = alphaByte;
-			vertices.BottomRightColor.A = alphaByte;
+			return Main.wallLight[cell.WallType];
 		}
 	}
 }

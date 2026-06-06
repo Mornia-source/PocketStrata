@@ -95,13 +95,20 @@ namespace PocketStrata.Content.Systems
 				FinishTransition();
 		}
 
-		// 在 PostDrawTiles 用 TileBatch 绘制，与墙体/方块同一套四角光照管线
+		// PostDrawTiles：SpriteBatch 乘色光照，与 DrawSingleTile 一致
 		public override void PostDrawTiles()
 		{
 			if (!_active || Main.dedServ || Main.gameMenu || _pairs.Count == 0)
 				return;
 
-			Main.tileBatch.Begin(Main.Rasterizer, Main.GameViewMatrix.TransformationMatrix);
+			Main.spriteBatch.Begin(
+				SpriteSortMode.Immediate,
+				BlendState.AlphaBlend,
+				SamplerState.PointClamp,
+				DepthStencilState.None,
+				Main.Rasterizer,
+				null,
+				Main.GameViewMatrix.TransformationMatrix);
 
 			try
 			{
@@ -109,7 +116,7 @@ namespace PocketStrata.Content.Systems
 			}
 			finally
 			{
-				Main.tileBatch.End();
+				Main.spriteBatch.End();
 			}
 		}
 
@@ -368,6 +375,21 @@ namespace PocketStrata.Content.Systems
 					continue;
 
 				float localTime = _elapsed - pair.Delay;
+				float enterProgress = MathHelper.Clamp(
+					(localTime - EnterLeadSeconds) / EnterAnimSeconds,
+					0f,
+					1f);
+
+				if (!pair.Committed)
+				{
+					bool shouldCommit = pair.ToCell.HasPlacedContent
+						? enterProgress >= PocketFlyingTileDrawHelper.FadeOutStart
+						: localTime >= ExitAnimSeconds;
+
+					if (shouldCommit)
+						CommitPair(pair);
+				}
+
 				if (localTime >= EnterLeadSeconds + EnterAnimSeconds)
 					FinishPair(pair);
 			}
@@ -490,7 +512,16 @@ namespace PocketStrata.Content.Systems
 			float alpha = MathHelper.Lerp(1f, 0f, EaseOut(MathHelper.Clamp(progress * 1.15f, 0f, 1f)));
 			float rotation = (pair.Hash - 0.5f) * 0.35f + eased * (pair.Hash - 0.5f) * 1.4f;
 
-			PocketFlyingTileDrawHelper.DrawCell(sb, pair.FromCell, worldPos, scale, rotation, alpha, pair.TileX, pair.TileY);
+			PocketFlyingTileDrawHelper.DrawCell(
+				sb,
+				pair.FromCell,
+				worldPos,
+				scale,
+				rotation,
+				alpha,
+				pair.TileX,
+				pair.TileY,
+				enterProgress: 0f);
 		}
 
 		private void DrawEnterPair(SpriteBatch sb, FlyPair pair, Vector2 targetCenter, float progress)
@@ -504,7 +535,16 @@ namespace PocketStrata.Content.Systems
 			float alpha = MathHelper.Lerp(0f, 1f, EaseIn(MathHelper.Clamp(progress * 1.08f, 0f, 1f)));
 			float rotation = (pair.Hash - 0.5f) * 0.55f * (1f - eased);
 
-			PocketFlyingTileDrawHelper.DrawCell(sb, pair.ToCell, worldPos, scale, rotation, alpha, pair.TileX, pair.TileY);
+			PocketFlyingTileDrawHelper.DrawCell(
+				sb,
+				pair.ToCell,
+				worldPos,
+				scale,
+				rotation,
+				alpha,
+				pair.TileX,
+				pair.TileY,
+				enterProgress: progress);
 		}
 
 		private Vector2 ComputeExitWorldPos(FlyPair pair, Vector2 targetCenter, float progress)
